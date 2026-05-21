@@ -327,6 +327,17 @@ fn generate_component_reflection() -> Result<ComponentReflectionMap, Serializati
             },
         ),
         (
+            <LinkVisibility as Component>::name(),
+            ComponentReflection {
+                docstring_md: "Whether toggling an entity's visibility in one view should propagate to peer views.\n\nWhen enabled, changing the `visible` override of an entity in any view will write\nthe same override into every other view whose contents include that entity. Disabled\nby default — each view manages its own visibility overrides independently.\n\n⚠\u{fe0f} **This type is _unstable_ and may change significantly in a way that the data won't be backwards compatible.**",
+                deprecation_summary: None,
+                custom_placeholder: None,
+                datatype: LinkVisibility::arrow_datatype(),
+                is_enum: false,
+                verify_arrow_array: LinkVisibility::verify_arrow_array,
+            },
+        ),
+        (
             <LockRangeDuringZoom as Component>::name(),
             ComponentReflection {
                 docstring_md: "Indicate whether the range should be locked when zooming in on the data.\n\nDefault is `false`, i.e. zoom will change the visualized range.\n\n⚠\u{fe0f} **This type is _unstable_ and may change significantly in a way that the data won't be backwards compatible.**",
@@ -4016,6 +4027,13 @@ fn generate_archetype_reflection() -> ArchetypeReflectionMap {
                         display_name: "Visible",
                         component_type: "rerun.components.Visible".into(),
                         docstring_md: "Whether the entity is visible.\n\nThis property is propagated down the entity hierarchy until another child entity\nsets `visible` to a different value at which point propagation continues with that value instead.\n\nDefaults to parent's `visible` value or true if there is no parent.",
+                        flags: ArchetypeFieldFlags::UI_EDITABLE,
+                    },
+                    ArchetypeFieldReflection {
+                        name: "link_visibility",
+                        display_name: "Link visibility",
+                        component_type: "rerun.blueprint.components.LinkVisibility".into(),
+                        docstring_md: "Whether toggling this entity's visibility should propagate across views.\n\nWhen `true`, toggling this entity's `visible` override in one view also writes the same\noverride to every other view whose contents contain this entity. Useful for keeping\nmulti-step debug entities synchronized when you toggle them on or off.\n\nDefaults to `false` — each view manages its own visibility independently.",
                         flags: ArchetypeFieldFlags::UI_EDITABLE,
                     },
                 ],

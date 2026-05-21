@@ -33,6 +33,7 @@ grid_spacing.hpp linguist-generated=true
 included_content.hpp linguist-generated=true
 link_axis.cpp linguist-generated=true
 link_axis.hpp linguist-generated=true
+link_visibility.hpp linguist-generated=true
 lock_range_during_zoom.hpp linguist-generated=true
 loop_mode.cpp linguist-generated=true
 loop_mode.hpp linguist-generated=true

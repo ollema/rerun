@@ -28,6 +28,7 @@
 #include "blueprint/components/grid_spacing.hpp"
 #include "blueprint/components/included_content.hpp"
 #include "blueprint/components/link_axis.hpp"
+#include "blueprint/components/link_visibility.hpp"
 #include "blueprint/components/lock_range_during_zoom.hpp"
 #include "blueprint/components/loop_mode.hpp"
 #include "blueprint/components/map_provider.hpp"

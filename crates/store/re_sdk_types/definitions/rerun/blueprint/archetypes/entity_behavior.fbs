@@ -25,4 +25,13 @@ table EntityBehavior (
     ///
     /// Defaults to parent's `visible` value or true if there is no parent.
     visible: rerun.components.Visible ("attr.rerun.component_optional", nullable, order: 200);
+
+    /// Whether toggling this entity's visibility should propagate across views.
+    ///
+    /// When `true`, toggling this entity's `visible` override in one view also writes the same
+    /// override to every other view whose contents contain this entity. Useful for keeping
+    /// multi-step debug entities synchronized when you toggle them on or off.
+    ///
+    /// Defaults to `false` — each view manages its own visibility independently.
+    link_visibility: rerun.blueprint.components.LinkVisibility ("attr.rerun.component_optional", nullable, order: 300);
 }

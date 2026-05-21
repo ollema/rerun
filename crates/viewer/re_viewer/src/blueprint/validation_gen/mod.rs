@@ -30,6 +30,7 @@ pub use re_sdk_types::blueprint::components::GridColumns;
 pub use re_sdk_types::blueprint::components::GridSpacing;
 pub use re_sdk_types::blueprint::components::IncludedContent;
 pub use re_sdk_types::blueprint::components::LinkAxis;
+pub use re_sdk_types::blueprint::components::LinkVisibility;
 pub use re_sdk_types::blueprint::components::LockRangeDuringZoom;
 pub use re_sdk_types::blueprint::components::LoopMode;
 pub use re_sdk_types::blueprint::components::MapProvider;
@@ -89,6 +90,7 @@ pub fn is_valid_blueprint(blueprint: &EntityDb) -> bool {
         && validate_component::<GridSpacing>(blueprint)
         && validate_component::<IncludedContent>(blueprint)
         && validate_component::<LinkAxis>(blueprint)
+        && validate_component::<LinkVisibility>(blueprint)
         && validate_component::<LockRangeDuringZoom>(blueprint)
         && validate_component::<LoopMode>(blueprint)
         && validate_component::<MapProvider>(blueprint)

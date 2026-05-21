@@ -28,6 +28,7 @@ from .grid_columns import GridColumns, GridColumnsBatch
 from .grid_spacing import GridSpacing, GridSpacingBatch
 from .included_content import IncludedContent, IncludedContentBatch
 from .link_axis import LinkAxis, LinkAxisArrayLike, LinkAxisBatch, LinkAxisLike
+from .link_visibility import LinkVisibility, LinkVisibilityBatch
 from .lock_range_during_zoom import LockRangeDuringZoom, LockRangeDuringZoomBatch
 from .loop_mode import LoopMode, LoopModeArrayLike, LoopModeBatch, LoopModeLike
 from .map_provider import MapProvider, MapProviderArrayLike, MapProviderBatch, MapProviderLike
@@ -122,6 +123,8 @@ __all__ = [
     "LinkAxisArrayLike",
     "LinkAxisBatch",
     "LinkAxisLike",
+    "LinkVisibility",
+    "LinkVisibilityBatch",
     "LockRangeDuringZoom",
     "LockRangeDuringZoomBatch",
     "LoopMode",

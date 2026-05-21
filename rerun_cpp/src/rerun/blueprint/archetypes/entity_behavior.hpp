@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "../../blueprint/components/link_visibility.hpp"
 #include "../../collection.hpp"
 #include "../../component_batch.hpp"
 #include "../../component_column.hpp"
@@ -36,6 +37,15 @@ namespace rerun::blueprint::archetypes {
         /// Defaults to parent's `visible` value or true if there is no parent.
         std::optional<ComponentBatch> visible;
 
+        /// Whether toggling this entity's visibility should propagate across views.
+        ///
+        /// When `true`, toggling this entity's `visible` override in one view also writes the same
+        /// override to every other view whose contents contain this entity. Useful for keeping
+        /// multi-step debug entities synchronized when you toggle them on or off.
+        ///
+        /// Defaults to `false` — each view manages its own visibility independently.
+        std::optional<ComponentBatch> link_visibility;
+
       public:
         /// The name of the archetype as used in `ComponentDescriptor`s.
         static constexpr const char ArchetypeName[] = "rerun.blueprint.archetypes.EntityBehavior";
@@ -49,6 +59,11 @@ namespace rerun::blueprint::archetypes {
         static constexpr auto Descriptor_visible = ComponentDescriptor(
             ArchetypeName, "EntityBehavior:visible",
             Loggable<rerun::components::Visible>::ComponentType
+        );
+        /// `ComponentDescriptor` for the `link_visibility` field.
+        static constexpr auto Descriptor_link_visibility = ComponentDescriptor(
+            ArchetypeName, "EntityBehavior:link_visibility",
+            Loggable<rerun::blueprint::components::LinkVisibility>::ComponentType
         );
 
       public:
@@ -86,6 +101,22 @@ namespace rerun::blueprint::archetypes {
         /// Defaults to parent's `visible` value or true if there is no parent.
         EntityBehavior with_visible(const rerun::components::Visible& _visible) && {
             visible = ComponentBatch::from_loggable(_visible, Descriptor_visible).value_or_throw();
+            return std::move(*this);
+        }
+
+        /// Whether toggling this entity's visibility should propagate across views.
+        ///
+        /// When `true`, toggling this entity's `visible` override in one view also writes the same
+        /// override to every other view whose contents contain this entity. Useful for keeping
+        /// multi-step debug entities synchronized when you toggle them on or off.
+        ///
+        /// Defaults to `false` — each view manages its own visibility independently.
+        EntityBehavior with_link_visibility(
+            const rerun::blueprint::components::LinkVisibility& _link_visibility
+        ) && {
+            link_visibility =
+                ComponentBatch::from_loggable(_link_visibility, Descriptor_link_visibility)
+                    .value_or_throw();
             return std::move(*this);
         }
 

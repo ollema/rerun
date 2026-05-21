@@ -14,6 +14,7 @@ from ..._baseclasses import (
     Archetype,
     ComponentDescriptor,
 )
+from ...blueprint import components as blueprint_components
 from ...error_utils import catch_and_log_exceptions
 
 __all__ = ["EntityBehavior"]
@@ -71,7 +72,11 @@ class EntityBehavior(Archetype):
     NAME: ClassVar[str] = "rerun.blueprint.archetypes.EntityBehavior"
 
     def __init__(
-        self: Any, *, interactive: datatypes.BoolLike | None = None, visible: datatypes.BoolLike | None = None
+        self: Any,
+        *,
+        interactive: datatypes.BoolLike | None = None,
+        visible: datatypes.BoolLike | None = None,
+        link_visibility: datatypes.BoolLike | None = None,
     ) -> None:
         """
         Create a new instance of the EntityBehavior archetype.
@@ -92,12 +97,20 @@ class EntityBehavior(Archetype):
             sets `visible` to a different value at which point propagation continues with that value instead.
 
             Defaults to parent's `visible` value or true if there is no parent.
+        link_visibility:
+            Whether toggling this entity's visibility should propagate across views.
+
+            When `true`, toggling this entity's `visible` override in one view also writes the same
+            override to every other view whose contents contain this entity. Useful for keeping
+            multi-step debug entities synchronized when you toggle them on or off.
+
+            Defaults to `false` — each view manages its own visibility independently.
 
         """
 
         # You can define your own __init__ function as a member of EntityBehaviorExt in entity_behavior_ext.py
         with catch_and_log_exceptions(context=self.__class__.__name__):
-            self.__attrs_init__(interactive=interactive, visible=visible)
+            self.__attrs_init__(interactive=interactive, visible=visible, link_visibility=link_visibility)
             return
         self.__attrs_clear__()
 
@@ -106,6 +119,7 @@ class EntityBehavior(Archetype):
         self.__attrs_init__(
             interactive=None,
             visible=None,
+            link_visibility=None,
         )
 
     @classmethod
@@ -122,6 +136,7 @@ class EntityBehavior(Archetype):
         clear_unset: bool = False,
         interactive: datatypes.BoolLike | None = None,
         visible: datatypes.BoolLike | None = None,
+        link_visibility: datatypes.BoolLike | None = None,
     ) -> EntityBehavior:
         """
         Update only some specific fields of a `EntityBehavior`.
@@ -144,6 +159,14 @@ class EntityBehavior(Archetype):
             sets `visible` to a different value at which point propagation continues with that value instead.
 
             Defaults to parent's `visible` value or true if there is no parent.
+        link_visibility:
+            Whether toggling this entity's visibility should propagate across views.
+
+            When `true`, toggling this entity's `visible` override in one view also writes the same
+            override to every other view whose contents contain this entity. Useful for keeping
+            multi-step debug entities synchronized when you toggle them on or off.
+
+            Defaults to `false` — each view manages its own visibility independently.
 
         """
 
@@ -152,6 +175,7 @@ class EntityBehavior(Archetype):
             kwargs = {
                 "interactive": interactive,
                 "visible": visible,
+                "link_visibility": link_visibility,
             }
 
             if clear_unset:
@@ -184,6 +208,14 @@ class EntityBehavior(Archetype):
             component_type=components.VisibleBatch._COMPONENT_TYPE,
         )
 
+    @staticmethod
+    def descriptor_link_visibility() -> ComponentDescriptor:
+        return ComponentDescriptor(
+            "EntityBehavior:link_visibility",
+            archetype=EntityBehavior.NAME,
+            component_type=blueprint_components.LinkVisibilityBatch._COMPONENT_TYPE,
+        )
+
     interactive: components.InteractiveBatch | None = field(
         metadata={"component": True},
         default=None,
@@ -209,6 +241,21 @@ class EntityBehavior(Archetype):
     # sets `visible` to a different value at which point propagation continues with that value instead.
     #
     # Defaults to parent's `visible` value or true if there is no parent.
+    #
+    # (Docstring intentionally commented out to hide this field from the docs)
+
+    link_visibility: blueprint_components.LinkVisibilityBatch | None = field(
+        metadata={"component": True},
+        default=None,
+        converter=blueprint_components.LinkVisibilityBatch._converter,  # type: ignore[misc]
+    )
+    # Whether toggling this entity's visibility should propagate across views.
+    #
+    # When `true`, toggling this entity's `visible` override in one view also writes the same
+    # override to every other view whose contents contain this entity. Useful for keeping
+    # multi-step debug entities synchronized when you toggle them on or off.
+    #
+    # Defaults to `false` — each view manages its own visibility independently.
     #
     # (Docstring intentionally commented out to hide this field from the docs)
 

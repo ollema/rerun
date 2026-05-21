@@ -41,6 +41,15 @@ pub struct EntityBehavior {
     ///
     /// Defaults to parent's `visible` value or true if there is no parent.
     pub visible: Option<SerializedComponentBatch>,
+
+    /// Whether toggling this entity's visibility should propagate across views.
+    ///
+    /// When `true`, toggling this entity's `visible` override in one view also writes the same
+    /// override to every other view whose contents contain this entity. Useful for keeping
+    /// multi-step debug entities synchronized when you toggle them on or off.
+    ///
+    /// Defaults to `false` — each view manages its own visibility independently.
+    pub link_visibility: Option<SerializedComponentBatch>,
 }
 
 impl EntityBehavior {
@@ -67,6 +76,18 @@ impl EntityBehavior {
             component_type: Some("rerun.components.Visible".into()),
         }
     }
+
+    /// Returns the [`ComponentDescriptor`] for [`Self::link_visibility`].
+    ///
+    /// The corresponding component is [`crate::blueprint::components::LinkVisibility`].
+    #[inline]
+    pub fn descriptor_link_visibility() -> ComponentDescriptor {
+        ComponentDescriptor {
+            archetype: Some("rerun.blueprint.archetypes.EntityBehavior".into()),
+            component: "EntityBehavior:link_visibility".into(),
+            component_type: Some("rerun.blueprint.components.LinkVisibility".into()),
+        }
+    }
 }
 
 static REQUIRED_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 0usize]> =
@@ -75,25 +96,27 @@ static REQUIRED_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 0usize]> =
 static RECOMMENDED_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 0usize]> =
     std::sync::LazyLock::new(|| []);
 
-static OPTIONAL_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 2usize]> =
+static OPTIONAL_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 3usize]> =
     std::sync::LazyLock::new(|| {
         [
             EntityBehavior::descriptor_interactive(),
             EntityBehavior::descriptor_visible(),
+            EntityBehavior::descriptor_link_visibility(),
         ]
     });
 
-static ALL_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 2usize]> =
+static ALL_COMPONENTS: std::sync::LazyLock<[ComponentDescriptor; 3usize]> =
     std::sync::LazyLock::new(|| {
         [
             EntityBehavior::descriptor_interactive(),
             EntityBehavior::descriptor_visible(),
+            EntityBehavior::descriptor_link_visibility(),
         ]
     });
 
 impl EntityBehavior {
-    /// The total number of components in the archetype: 0 required, 0 recommended, 2 optional
-    pub const NUM_COMPONENTS: usize = 2usize;
+    /// The total number of components in the archetype: 0 required, 0 recommended, 3 optional
+    pub const NUM_COMPONENTS: usize = 3usize;
 }
 
 impl ::re_types_core::Archetype for EntityBehavior {
@@ -142,9 +165,15 @@ impl ::re_types_core::Archetype for EntityBehavior {
         let visible = arrays_by_descr
             .get(&Self::descriptor_visible())
             .map(|array| SerializedComponentBatch::new(array.clone(), Self::descriptor_visible()));
+        let link_visibility = arrays_by_descr
+            .get(&Self::descriptor_link_visibility())
+            .map(|array| {
+                SerializedComponentBatch::new(array.clone(), Self::descriptor_link_visibility())
+            });
         Ok(Self {
             interactive,
             visible,
+            link_visibility,
         })
     }
 }
@@ -153,10 +182,14 @@ impl ::re_types_core::AsComponents for EntityBehavior {
     #[inline]
     fn as_serialized_batches(&self) -> Vec<SerializedComponentBatch> {
         use ::re_types_core::Archetype as _;
-        [self.interactive.clone(), self.visible.clone()]
-            .into_iter()
-            .flatten()
-            .collect()
+        [
+            self.interactive.clone(),
+            self.visible.clone(),
+            self.link_visibility.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -169,6 +202,7 @@ impl EntityBehavior {
         Self {
             interactive: None,
             visible: None,
+            link_visibility: None,
         }
     }
 
@@ -190,6 +224,10 @@ impl EntityBehavior {
             visible: Some(SerializedComponentBatch::new(
                 crate::components::Visible::arrow_empty(),
                 Self::descriptor_visible(),
+            )),
+            link_visibility: Some(SerializedComponentBatch::new(
+                crate::blueprint::components::LinkVisibility::arrow_empty(),
+                Self::descriptor_link_visibility(),
             )),
         }
     }
@@ -220,11 +258,30 @@ impl EntityBehavior {
         self.visible = try_serialize_field(Self::descriptor_visible(), [visible]);
         self
     }
+
+    /// Whether toggling this entity's visibility should propagate across views.
+    ///
+    /// When `true`, toggling this entity's `visible` override in one view also writes the same
+    /// override to every other view whose contents contain this entity. Useful for keeping
+    /// multi-step debug entities synchronized when you toggle them on or off.
+    ///
+    /// Defaults to `false` — each view manages its own visibility independently.
+    #[inline]
+    pub fn with_link_visibility(
+        mut self,
+        link_visibility: impl Into<crate::blueprint::components::LinkVisibility>,
+    ) -> Self {
+        self.link_visibility =
+            try_serialize_field(Self::descriptor_link_visibility(), [link_visibility]);
+        self
+    }
 }
 
 impl ::re_byte_size::SizeBytes for EntityBehavior {
     #[inline]
     fn heap_size_bytes(&self) -> u64 {
-        self.interactive.heap_size_bytes() + self.visible.heap_size_bytes()
+        self.interactive.heap_size_bytes()
+            + self.visible.heap_size_bytes()
+            + self.link_visibility.heap_size_bytes()
     }
 }

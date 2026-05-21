@@ -1,0 +1,20 @@
+
+namespace rerun.blueprint.components;
+
+// ---
+
+/// Whether toggling an entity's visibility in one view should propagate to peer views.
+///
+/// When enabled, changing the `visible` override of an entity in any view will write
+/// the same override into every other view whose contents include that entity. Disabled
+/// by default — each view manages its own visibility overrides independently.
+struct LinkVisibility (
+  "attr.arrow.transparent",
+  "attr.python.aliases": "bool",
+  "attr.rerun.scope": "blueprint",
+  "attr.rust.derive": "Copy",
+  "attr.rust.repr": "transparent",
+  "attr.rust.tuple_struct"
+) {
+  link_visibility: rerun.datatypes.Bool (order: 100);
+}
