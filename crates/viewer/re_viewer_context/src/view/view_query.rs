@@ -7,7 +7,7 @@ use re_chunk::{ComponentIdentifier, TimelineName};
 use re_chunk_store::LatestAtQuery;
 use re_entity_db::{EntityPath, TimeInt};
 use re_sdk_types::blueprint::archetypes::{self as blueprint_archetypes, EntityBehavior};
-use re_sdk_types::blueprint::components::VisualizerInstructionId;
+use re_sdk_types::blueprint::components::{LinkVisibility, VisualizerInstructionId};
 use re_sdk_types::blueprint::datatypes::{ComponentSourceKind, VisualizerComponentMapping};
 
 use crate::blueprint_helpers::BlueprintContext as _;
@@ -359,6 +359,9 @@ impl DataResult {
     /// If no override is set, this will always set the override.
     /// If an override is set, this will either write an override or clear it if the parent has the desired value already.
     ///
+    /// If this entity has its [`LinkVisibility`] flag enabled (see [`Self::is_link_visibility_enabled`]),
+    /// the same write-or-clear decision is applied to every other view whose query results contain this entity.
+    ///
     /// In either case, this will be effective only by the next frame.
     pub fn save_visible(
         &self,
@@ -366,7 +369,9 @@ impl DataResult {
         data_result_tree: &DataResultTree,
         new_value: bool,
     ) {
-        // Check if we should instead clear an existing override.
+        let linked = self.is_link_visibility_enabled(ctx);
+
+        // Check if we should instead clear an existing override on the originating view.
         if self.has_base_override(ctx, EntityBehavior::descriptor_visible().component) {
             let parent_visibility = self
                 .entity_path
@@ -379,6 +384,9 @@ impl DataResult {
                     self.override_base_path.clone(),
                     EntityBehavior::descriptor_visible(),
                 );
+                if linked {
+                    self.propagate_visible_to_linked_views(ctx, VisibleOp::Clear);
+                }
                 return;
             }
         }
@@ -387,6 +395,107 @@ impl DataResult {
             self.override_base_path.clone(),
             &blueprint_archetypes::EntityBehavior::update_fields().with_visible(new_value),
         );
+        if linked {
+            self.propagate_visible_to_linked_views(ctx, VisibleOp::Write(new_value));
+        }
+    }
+
+    /// Sets this entity's [`LinkVisibility`] flag.
+    ///
+    /// The flag is mirrored across every peer view that contains this entity, so the "is this
+    /// entity linked?" state is consistent regardless of which view's blueprint row you read.
+    ///
+    /// When enabling linking, the entity's current resolved visibility is immediately synced
+    /// to all peer views so they don't diverge at the moment of opt-in.
+    /// When disabling linking, existing per-view `visible` overrides are left untouched —
+    /// only the link flag is removed.
+    pub fn save_link_visibility(&self, ctx: &ViewerContext<'_>, new_value: bool) {
+        // Write the flag to this view's override path.
+        ctx.save_blueprint_archetype(
+            self.override_base_path.clone(),
+            &blueprint_archetypes::EntityBehavior::update_fields().with_link_visibility(new_value),
+        );
+        // Mirror to peer views so reading the flag from any view returns the same answer.
+        self.for_each_peer_view(ctx, |ctx, peer_override_path| {
+            ctx.save_blueprint_archetype(
+                peer_override_path,
+                &blueprint_archetypes::EntityBehavior::update_fields()
+                    .with_link_visibility(new_value),
+            );
+        });
+
+        if new_value {
+            // Sync the entity's current visibility across peer views right now, so toggling the
+            // link doesn't leave views diverged until the next visibility toggle.
+            self.propagate_visible_to_linked_views(ctx, VisibleOp::Write(self.is_visible()));
+        }
+    }
+
+    /// Whether this entity's [`LinkVisibility`] flag is set in the blueprint store.
+    pub fn is_link_visibility_enabled(&self, ctx: &ViewerContext<'_>) -> bool {
+        let descriptor = EntityBehavior::descriptor_link_visibility();
+        ctx.store_context
+            .blueprint
+            .latest_at(
+                ctx.blueprint_query,
+                &self.override_base_path,
+                [descriptor.component],
+            )
+            .component_mono::<LinkVisibility>(descriptor.component)
+            .is_some_and(|c| *c.0)
+    }
+
+    /// Iterate the override paths of every other view whose query results contain this entity.
+    ///
+    /// Used by linked-visibility propagation to fan writes out across peer views in a deterministic
+    /// order, skipping the originating view and views where the entity is absent.
+    fn for_each_peer_view(
+        &self,
+        ctx: &ViewerContext<'_>,
+        mut f: impl FnMut(&ViewerContext<'_>, EntityPath),
+    ) {
+        // Sort peer view ids for deterministic iteration order.
+        let mut peer_view_ids: Vec<&ViewId> = ctx.query_results.keys().collect();
+        peer_view_ids.sort();
+        for peer_view_id in peer_view_ids {
+            let Some(peer_query_result) = ctx.query_results.get(peer_view_id) else {
+                continue;
+            };
+            let peer_override_path =
+                blueprint_archetypes::ViewContents::blueprint_base_visualizer_path_for_entity(
+                    peer_view_id.uuid(),
+                    &self.entity_path,
+                );
+            // Skip the originating view.
+            if peer_override_path == self.override_base_path {
+                continue;
+            }
+            // Skip views that don't contain this entity.
+            if peer_query_result
+                .tree
+                .lookup_result_by_path(self.entity_path.hash())
+                .is_none()
+            {
+                continue;
+            }
+            f(ctx, peer_override_path);
+        }
+    }
+
+    /// Mirror the originating view's write-or-clear decision to every other view whose query
+    /// results contain this entity.
+    fn propagate_visible_to_linked_views(&self, ctx: &ViewerContext<'_>, op: VisibleOp) {
+        let descriptor_visible = EntityBehavior::descriptor_visible();
+        self.for_each_peer_view(ctx, move |ctx, peer_override_path| match op {
+            VisibleOp::Write(value) => ctx.save_blueprint_archetype(
+                peer_override_path,
+                &blueprint_archetypes::EntityBehavior::update_fields().with_visible(value),
+            ),
+            VisibleOp::Clear => ctx.clear_blueprint_component(
+                peer_override_path,
+                descriptor_visible.clone(),
+            ),
+        });
     }
 
     /// Overrides the `interactive` behavior such that the given value becomes set next frame.
@@ -506,4 +615,11 @@ impl<'s> ViewQuery<'s> {
     pub fn latest_at_query(&self) -> LatestAtQuery {
         LatestAtQuery::new(self.timeline, self.latest_at)
     }
+}
+
+/// Whether a linked-visibility propagation should write an explicit `visible` value or clear the override.
+#[derive(Copy, Clone, Debug)]
+enum VisibleOp {
+    Write(bool),
+    Clear,
 }
