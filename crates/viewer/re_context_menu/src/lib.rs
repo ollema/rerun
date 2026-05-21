@@ -25,6 +25,7 @@ use actions::clone_view::CloneViewAction;
 use actions::collapse_expand_all::CollapseExpandAllAction;
 use actions::move_contents_to_new_container::MoveContentsToNewContainerAction;
 use actions::remove::RemoveAction;
+use actions::link_visibility::{LinkVisibilityAction, UnlinkVisibilityAction};
 use actions::show_hide::{HideAction, ShowAction};
 use actions::{CopyEntityPathToClipboard, TrackEntity};
 use re_ui::menu::menu_style;
@@ -164,6 +165,8 @@ fn action_list(
             vec![
                 Box::new(ShowAction),
                 Box::new(HideAction),
+                Box::new(LinkVisibilityAction),
+                Box::new(UnlinkVisibilityAction),
                 Box::new(RemoveAction),
                 Box::new(CopyEntityPathToClipboard),
                 Box::new(TrackEntity),
